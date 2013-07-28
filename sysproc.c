@@ -88,3 +88,15 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+//bluesea
+//Lecture3 in-class exercise: halt
+
+int
+sys_halt(void){
+  char *p = "Shutdown";
+  for( ; *p; p++)
+    outb(0x8900, *p);
+  return 0;
+}

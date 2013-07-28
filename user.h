@@ -22,6 +22,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+//bluesea
+int halt(void);
 
 // ulib.c
 int stat(char*, struct stat*);

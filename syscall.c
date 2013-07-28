@@ -98,6 +98,8 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+//bluesea
+extern int sys_halt(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -121,16 +123,47 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_halt]   sys_halt,
 };
+
 
 void
 syscall(void)
 {
+	//bluesea
+	//syscall的序号是从1开始的，所以第一个位置留个空: "hole"
+  char *syscall_name [] = {
+	  "hole",
+    "fork",
+    "exit",
+    "wait",
+    "pipe",
+    "read",
+    "kill",
+    "exec",
+   "fstat",
+   "chdir",
+     "dup",
+  "getpid",
+    "sbrk",
+   "sleep",
+  "uptime",
+    "open",
+   "write",
+   "mknod",
+  "unlink",
+    "link",
+   "mkdir",
+   "close",
+   "halt"
+  };
   int num;
 
   num = proc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     proc->tf->eax = syscalls[num]();
+	if (num <10)
+	cprintf("%s -> %d\n", syscall_name[num], proc->tf->eax);
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             proc->pid, proc->name, num);
