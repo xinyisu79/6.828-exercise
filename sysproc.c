@@ -46,12 +46,18 @@ sys_sbrk(void)
 {
   int addr;
   int n;
-
+  /*
   if(argint(0, &n) < 0)
     return -1;
   addr = proc->sz;
   if(growproc(n) < 0)
     return -1;
+	*/
+  //bluesea
+  if (argint(0, &n) < 0)
+	  return -1;
+  addr = proc->sz;
+  proc->sz += n;
   return addr;
 }
 

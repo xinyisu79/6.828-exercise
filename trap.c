@@ -32,6 +32,10 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
+//bluesea
+//add mappages declaration
+extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
+
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)
@@ -87,6 +91,14 @@ trap(struct trapframe *tf)
       panic("trap");
     }
     // In user space, assume process misbehaved.
+	// bluesea
+	// 不需要把sysbrk(n)的n字节全都分配了，是哪次缺哪一页就分配物理内存
+	// 映射给这一页, 所以这儿之需要处理addr
+	uint start = PGROUNDDOWN(rcr2());
+	char *mem = kalloc();
+	memset(mem, 0, PGSIZE);
+	mappages(proc->pgdir, (void *)start, PGSIZE, v2p(mem), PTE_W|PTE_U);
+	return;
     cprintf("pid %d %s: trap %d err %d on cpu %d "
             "eip 0x%x addr 0x%x--kill proc\n",
             proc->pid, proc->name, tf->trapno, tf->err, cpu->id, tf->eip, 
