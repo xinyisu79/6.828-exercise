@@ -17,6 +17,10 @@ extern char end[]; // first address after kernel loaded from ELF file
 int
 main(void)
 {
+  //开始freelist是空的，先把entrypgdir映射下的[end, 4M)的内存释放掉。
+  //(kernel加载完后，只占据[KERNBASE, end)部分内存，所以以上的都可以free
+  //然后用kvmalloc()进行真正的page mapping 
+  //同时由于4M以下的内存无法用锁，所以用了kinit2处理4M以上的内存
   kinit1(end, P2V(4*1024*1024)); // phys page allocator
   kvmalloc();      // kernel page table
   mpinit();        // collect info about this machine

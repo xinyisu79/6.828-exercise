@@ -275,6 +275,8 @@ scheduler(void)
       proc = p;
       switchuvm(p);
       p->state = RUNNING;
+	  //进入swtch, (swtch里面的ret指令会跳转到proc进程的代码处执行)
+	  //cpu->scheduler 目的是将当前的per-cpu scheduler的状态保存起来。
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
 

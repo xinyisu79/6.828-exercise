@@ -1,3 +1,4 @@
+//buf结构题代表每一个disk上的扇区
 struct buf {
   int flags;
   uint dev;

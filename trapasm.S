@@ -2,6 +2,10 @@
 
   # vectors.S sends all traps here.
 .globl alltraps
+#顾名思义，所有的trap(包括中断，系统调用，exception）都会进入这部分的代码。
+#然后调用trap(), trap中根据不同的类型，SYS_CALL, 还是EXCEPTION等，进行不同的处理：
+#SYS_CALL的话，就调用sys_call. 异常就调用相应的exception handler.
+
 alltraps:
   # Build trap frame.
   pushl %ds
@@ -11,6 +15,7 @@ alltraps:
   pushal
   
   # Set up data and per-cpu segments.
+  # 将es, fs, gs设置为kernel mode下的segment selector
   movw $(SEG_KDATA<<3), %ax
   movw %ax, %ds
   movw %ax, %es

@@ -42,6 +42,8 @@ seginit(void)
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
+// 和lab2中的pgdir_walk()功能类似: 给定va，pgdir, 返回
+// page table entry的地址，二次查找页目录和页表。
 static pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
@@ -112,6 +114,8 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 
 // This table defines the kernel's mappings, which are present in
 // every process's page table.
+// kmap定义了内核需要映射的各个部分内存区域的长度，地址等.
+// 在setupkvm()中会用到
 static struct kmap {
   void *virt;
   uint phys_start;
@@ -125,6 +129,10 @@ static struct kmap {
 };
 
 // Set up kernel part of a page table.
+// 处理kernel部分的内存映射。entry的时候的页表只是临时的
+// 先分配page directory，然后将page directory entry填写，映射好。
+// 返回kernel page directory pointer
+//
 pde_t*
 setupkvm(void)
 {
@@ -161,6 +169,8 @@ switchkvm(void)
 }
 
 // Switch TSS and h/w page table to correspond to process p.
+// switch to user virtual memory
+// 通过更改tss, cr3等
 void
 switchuvm(struct proc *p)
 {

@@ -130,6 +130,7 @@ syscall(void)
 
   num = proc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+	//系统调用返回值放到proc->tv->eax中
     proc->tf->eax = syscalls[num]();
   } else {
     cprintf("%d %s: unknown sys call %d\n",

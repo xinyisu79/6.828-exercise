@@ -12,10 +12,17 @@
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
 
+//记录free page frame物理页面的数据结构
+//存放在所在的物理页面的位置。
+//类似于lab2中的PageInfo数据结构的作用
 struct run {
   struct run *next;
 };
 
+// 应该是表示kernel memory管理分配物理内存页面的数据信息
+// struct run{}是存储在对应free page frame的。链接向下一个
+// free page frame. 
+// lock用来保护对该数据结构的访问。
 struct {
   struct spinlock lock;
   int use_lock;

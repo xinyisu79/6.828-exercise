@@ -21,6 +21,8 @@ tvinit(void)
 
   for(i = 0; i < 256; i++)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
+  //如果是SYSTEM_CALL的话，gate.type的FL就不置位，以允许system call期间的
+  //中断的产生
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
   
   initlock(&tickslock, "time");
@@ -39,6 +41,13 @@ trap(struct trapframe *tf)
   if(tf->trapno == T_SYSCALL){
     if(proc->killed)
       exit();
+	//指针tf 即alltrap中的esp的值。
+	//esp指向的栈上（stack top-> low):
+	//edi, esi, ebp, old esp, ebx, edx, eax, ... gs, fs, es, ds, | trapno, error_code|, eip, cs,
+	//efalgs,esp,ss
+	//trapno之前这是在alltrap中push的.
+	//trapno, error_code是vector.S push的
+	//eip,cs,flags是int指令硬件自动push的
     proc->tf = tf;
     syscall();
     if(proc->killed)

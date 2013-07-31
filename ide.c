@@ -50,9 +50,11 @@ ideinit(void)
   initlock(&idelock, "ide");
   picenable(IRQ_IDE);
   ioapicenable(IRQ_IDE, ncpu - 1);
+  // 等待直到busy位清除
   idewait(0);
   
   // Check if disk 1 is present
+  // 检查disk 1是否存在，默认disk0存在，因为kernel从disk0加载。
   outb(0x1f6, 0xe0 | (1<<4));
   for(i=0; i<1000; i++){
     if(inb(0x1f7) != 0){
@@ -112,6 +114,8 @@ ideintr(void)
   wakeup(b);
   
   // Start disk on next buf in queue.
+  // 处理链表中的下一个buf的请求
+  // 这样的话，就可以每搞定一个请求，就接着处理下一个请求
   if(idequeue != 0)
     idestart(idequeue);
 
@@ -122,6 +126,7 @@ ideintr(void)
 // Sync buf with disk. 
 // If B_DIRTY is set, write buf to disk, clear B_DIRTY, set B_VALID.
 // Else if B_VALID is not set, read buf from disk, set B_VALID.
+// 将buf和磁盘上的数据同步，根据DIRTY，VALID位判断操作
 void
 iderw(struct buf *b)
 {
@@ -147,6 +152,13 @@ iderw(struct buf *b)
     idestart(b);
   
   // Wait for request to finish.
+  // 因为磁盘读写操作比较耗时，所以sleep, 这样Disk就去完成读写操作，
+  // 操作系统会用scheduler切换运行进程。
+  // 并用队列保存request
+  // 当磁盘操作结束后，会产生中断, 然后由IDE Interrupt Handler处理
+  // (trap()中的ideintr()函数) 
+  // ideinit 会察看操作：如果是读操作，数据已有了，就从IDE里面读到buffer
+  // 并且让所有sleep on this buffer的进程唤醒过来
   while((b->flags & (B_VALID|B_DIRTY)) != B_VALID){
     sleep(b, &idelock);
   }

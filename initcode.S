@@ -5,6 +5,10 @@
 
 
 # exec(init, argv)
+
+#第一个进程初始化的时候，用initnode.S的代码作为执行代码
+#但这个又是/init程序的bootstrap, 下面的代码用exec系统调用
+#执行"/init" 程序
 .globl start
 start:
   pushl $argv
