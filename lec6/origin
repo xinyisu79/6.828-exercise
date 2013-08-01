@@ -1,0 +1,13 @@
+0: put time = 5.807533
+0: lookup time = 13.211571
+0: 0 keys missing
+completion time = 19.019350
+
+
+1: put time = 2.735315
+0: put time = 2.779806
+1: lookup time = 11.976516
+1: 13 keys missing
+0: lookup time = 11.982358
+0: 13 keys missing
+completion time = 14.762329

@@ -8,6 +8,8 @@
 #define NBUCKET 5
 #define NKEYS 100000
 
+pthread_mutex_t lock[NBUCKET];
+
 struct entry {
   int key;
   int value;
@@ -55,6 +57,12 @@ static
 void put(int key, int value)
 {
   struct entry *n, **p;
+  
+  //反复思考，只能以每一条链为加锁粒度。
+  //因为put()里面, 每次调用put都是对某一条链的读写。且寻找过程中，n->key > key，
+  //如果有另外的线程插在entry *n前面，那就有可能n->previous->key > key了。即此线程
+  //的key应插入n和刚插入节点之间。但是回不去，不是双向链表。
+  pthread_mutex_lock(&lock[key%NBUCKET]);
   for (p = &table[key%NBUCKET], n = table[key % NBUCKET]; n != 0; p = &n->next, n = n->next) {
     if (n->key > key) {
       insert(key, value, p, n);
@@ -63,6 +71,7 @@ void put(int key, int value)
   }
   insert(key, value, p, n);
  done:
+  pthread_mutex_unlock(&lock[key%NBUCKET]);
   return;
 }
 
@@ -127,6 +136,8 @@ main(int argc, char *argv[])
   for (i = 0; i < NKEYS; i++) {
     keys[i] = random();
   }
+  for (i = 0; i < NBUCKET; i++)
+	  pthread_mutex_init(lock + i, NULL);
   t0 = now();
   for(i = 0; i < nthread; i++) {
     assert(pthread_create(&tha[i], NULL, thread, (void *) i) == 0);
