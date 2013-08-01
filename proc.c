@@ -31,6 +31,48 @@ pinit(void)
 // If found, change state to EMBRYO and initialize
 // state required to run in the kernel.
 // Otherwise return 0.
+
+/*
+进程调度的进行：
+
+1)相关概念：
+struct context{
+edi; esp; ebp; esi; eip;}
+数据结构保存状态。
+
+每个进程有一个所谓的kernel thread（其实就是某个进程运行在kernel下的状态的一个称呼，
+并没有为了user mode, kernel mode弄出两个线程来)
+
+调度器运行在scheduler thread上。其实也不是一个特殊的thread/process.
+也只是对运行在kernel下的scheduler()函数状态的一种描述。用context记录运行状态。
+（所以也不用什么process来对应。-- 当然，现实的os是有kernel thread/process的 -- 跑就是了。。）
+
+所以这儿说的thread，其实就是context数据结构对应的运行状态。用context描述更为准确。
+
+2) 什么时候调用sched?
+
+trap.c中调用yield()函数。yield会调用sched.
+sched调用swtch(proc->context, scheduler->context)； (old context, new context);
+
+3) swtch函数非常精妙！ 详见:switch.S
+*/
+
+/*
+linux 0.11中的方法：
+timer_interrupt. (定义在kernel/system_call.S) ：调用do_timer函数。
+
+do_timer函数(包含定时器的处理，然后就是调用scheduler())
+
+时钟中断处理函数，handler，被设定为timer_interrupt.
+
+scheduler(): 完成process switch. 关键代码是switch_to(n)， 转换到进程表中的n号进程执行，
+他这个的实现是：长跳转到制定TSS segment descriptor制定的地址下，cpu会自动将当前
+的寄存器状态保存到当前TSS（地址应该有TR寄存器制定)， 然后用从指定的TSS段中加载新的寄存器，
+包括eip, esp, 然后执行。
+
+所以，没那么精妙。。。JOS牛逼啊。
+*/
+
 static struct proc*
 allocproc(void)
 {
@@ -246,7 +288,7 @@ wait(void)
   }
 }
 
-//PAGEBREAK: 42
+// PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -261,6 +303,12 @@ scheduler(void)
 
   for(;;){
     // Enable interrupts on this processor.
+	// 因为acquire ptable.lock的时候会disable interrupt.
+	// 而当所有的进程都在waiting for IO，scheduler就一直找不到switch to
+	// process. 也就不会release lock, 也就不会enable interrupt.
+	// 而没有interrupt, IO事件也就不会触发。
+	// 所以每次循环需要enable interrupt.
+	// 很trick...
     sti();
 
     // Loop over process table looking for process to run.
@@ -275,8 +323,6 @@ scheduler(void)
       proc = p;
       switchuvm(p);
       p->state = RUNNING;
-	  //进入swtch, (swtch里面的ret指令会跳转到proc进程的代码处执行)
-	  //cpu->scheduler 目的是将当前的per-cpu scheduler的状态保存起来。
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
 
