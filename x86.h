@@ -117,6 +117,19 @@ sti(void)
   asm volatile("sti");
 }
 
+
+//原子操作，将newval的值存储到addr中
+//内联汇编的格式：
+//asm template
+//:output
+//:input
+//clobbered register
+//%0, %1依次指的是限制列表(从output到input)中的序号。
+//
+//此处,newval作为eax的输入，addr是%0，操作结束后，%1,即eax
+//的值，被mov到result中，作为返回值
+//
+//实在不行，把这个函数单拿出来，gcc -S看下汇编即可。
 static inline uint
 xchg(volatile uint *addr, uint newval)
 {

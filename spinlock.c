@@ -36,6 +36,7 @@ acquire(struct spinlock *lk)
 
   // Record info about lock acquisition for debugging.
   lk->cpu = cpu;
+  //记录下获取lock的栈的状况，为了debug用
   getcallerpcs(&lk, lk->pcs);
 }
 
@@ -93,6 +94,13 @@ holding(struct spinlock *lock)
 // it takes two popcli to undo two pushcli.  Also, if interrupts
 // are off, then pushcli, popcli leaves them off.
 
+//中断中，如果需要保护某个data structure, 而要加锁。
+//那么必须disable interrrupt。不然有可能死锁。
+//xv6的做法更保守，中断不禁止，不会尝试获取任何锁。
+//实际上，acquire() 在xchg获取锁之前，就调用了pushcli()
+//cli和sti指令是counted的，即两次pushcli需要两次popcli才能undo掉。
+//所以，如果一个过程，前后acquire两个不同的锁，(pushcli第二次能奏效）
+//并且，只有两个锁都释放了，中断才能重新enabled.
 void
 pushcli(void)
 {

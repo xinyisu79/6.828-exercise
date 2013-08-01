@@ -216,7 +216,7 @@ struct gatedesc {
   (gate).cs = (sel);                                      \
   (gate).args = 0;                                        \
   (gate).rsv1 = 0;                                        \
-  (gate).type = (istrap) ? TS_TG32 : STS_IG32;           \
+  (gate).type = (istrap) ? STS_TG32 : STS_IG32;           \
   (gate).s = 0;                                           \
   (gate).dpl = (d);                                       \
   (gate).p = 1;                                           \
