@@ -48,6 +48,9 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   release(&ptable.lock);
+  p->alarm_passed = 0;
+  p->alarmhandler = 0;
+  p->alarmticks = 0;
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){

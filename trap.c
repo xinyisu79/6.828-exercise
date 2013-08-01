@@ -48,7 +48,21 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
-    if(cpu->id == 0){
+	if (proc && (tf->cs & 3) == 3)
+		if (proc->alarmhandler && proc->alarm_passed++ >= proc->alarmticks)
+		{
+			proc->alarm_passed = 0;
+			void (*handler)() = proc->alarmhandler;
+			//需要把handler call stack上的返回地址，即本应返回的eip, 放到栈上。
+			//Question: 如果把这两句去掉，不知道为什么还能运行，但是alarm里面的循环
+			//就一直不停? (i的值保持在0~250000)
+			tf->esp -= 4;
+			*((uint *)tf->esp) = tf->eip;
+			tf->eip = (uint) handler;
+			//Question: 不知道为什么不能直接调用？page table都是一样的啊?
+			//(*handler)();
+		}
+	if(cpu->id == 0){
       acquire(&tickslock);
       ticks++;
       wakeup(&ticks);
