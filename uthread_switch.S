@@ -7,4 +7,13 @@
 	.globl thread_switch
 thread_switch:
 	/* YOUR CODE HERE */
+	movl current_thread, %eax
+	pushal
+	movl %esp, (%eax)
+
+	movl next_thread, %eax
+	movl %eax, current_thread
+	movl $0x0, next_thread
+	movl (%eax), %esp
+	popal
 	ret				/* pop return address from stack */

@@ -71,6 +71,8 @@ thread_create(void (*func)())
   t->sp = (int) (t->stack + STACK_SIZE);   // set sp to the top of the stack
   t->sp -= 4;                              // space for return address
   * (int *) (t->sp) = (int)func;           // push return address on stack
+  //开始就是没看到这儿，所以thread_switch没有popa, pusha，导致出问题
+  //但是还是应该想到的，thread switch的过程中自然应该保存当前context
   t->sp -= 32;                             // space for registers that thread_switch will push
   t->state = RUNNABLE;
 }
