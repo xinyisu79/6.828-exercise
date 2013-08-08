@@ -60,22 +60,56 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit(0);
-    fprintf(stderr, "exec not implemented\n");
-    // Your code here ...
+    //fprintf(stderr, "exec not implemented\n");
+	execvp(ecmd->argv[0], ecmd->argv);
     break;
 
   case '>':
   case '<':
     rcmd = (struct redircmd*)cmd;
-    fprintf(stderr, "redir not implemented\n");
-    // Your code here ...
+	//bluesea
+	//这里用到了一个trick: open函数返回的file descriptor一定是当前可用
+	//的最小的fd. 所以关闭rcmd->fd之后, 再open, 肯定是在相应的fd上打开.
+	//用dup2()也可以实现
+	close(rcmd->fd);
+	int status;
+	//注意, 如果是">"的话, 需要制定文件访问权限位. 它的sh.c里没写,
+	//结果输出的文件读取的时候就会出现权限问题.
+	if (rcmd->fd == 1)
+		status = open(rcmd->file, rcmd->mode, S_IRUSR | S_IWUSR | S_IRGRP 
+				| S_IROTH);
+	else 
+		status = open(rcmd->file, rcmd->mode);
+	if (status < 0){
+		fprintf(stderr, "open file fail\n");
+		exit(1);
+	}
     runcmd(rcmd->cmd);
     break;
 
   case '|':
     pcmd = (struct pipecmd*)cmd;
-    fprintf(stderr, "pipe not implemented\n");
-    // Your code here ...
+    //fprintf(stderr, "pipe not implemented\n");
+	int fields[2];
+	pipe(fields);
+	pid_t pid;
+	//解决方法: pipe一个管道, fork, 然后用dup2完成:
+	//对父进程: fields[1] -> STDOUT
+	//对子进程: fields[0] -> STDIN
+	//具体参见APUE ver 2.
+	if (pid = fork() > 0){//parent
+		close(fields[0]);
+		//dup2(STDOUT_FILENO, fields[1]); 这样就顺序反了.
+		//dup2(old, new)的意思是, 保持old的效果, 让指定的new的fd也是old那样.
+		//如果new已经打开, 就关闭new.
+		dup2(fields[1], STDOUT_FILENO);
+		runcmd(pcmd->left);
+	}
+	else{//child
+		close(fields[1]);
+		dup2(fields[0], STDIN_FILENO);
+		runcmd(pcmd->right);
+	}
     break;
   }    
   exit(0);
