@@ -1,6 +1,9 @@
 //
 // File descriptors
 //
+//这里面的一系列函数封装了file的操作
+//对pipe, inode等不同情况予以不同处理，从而
+//提供统一的接口，以实现everthing is file的理想...
 
 #include "types.h"
 #include "defs.h"

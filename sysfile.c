@@ -123,6 +123,8 @@ sys_link(void)
   if((ip = namei(old)) == 0)
     return -1;
 
+  //这一段用transaction能保证数据的一致性：
+  //不会出现unlink++，但是没有createing link file的情况
   begin_trans();
 
   ilock(ip);
@@ -139,11 +141,16 @@ sys_link(void)
   if((dp = nameiparent(new, name)) == 0)
     goto bad;
   ilock(dp);
+  //检查二者必须位于同一dev，这就是为什么不能跨dev建立link的
+  //内核代码的体现.(原因是只有同一dev才能保证唯一的inode id)
   if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
     iunlockput(dp);
     goto bad;
   }
   iunlockput(dp);
+  //Question: ???为什么需要iput(ip)?
+  //还是说，因为dirlink的时候会ref++,但是其实只有唯一一份inode
+  //cache. 所以应该inode ref--.? 但是没找到这份ref++的代码
   iput(ip);
 
   commit_trans();
@@ -231,6 +238,7 @@ bad:
   return -1;
 }
 
+//底层对inode的操作，被sys_mkdir, sys_open调用
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
@@ -242,12 +250,17 @@ create(char *path, short type, short major, short minor)
     return 0;
   ilock(dp);
 
+  //检测该inode是否已经存在
   if((ip = dirlookup(dp, name, &off)) != 0){
     iunlockput(dp);
     ilock(ip);
+	//如果是FILE的话，返回成功，就返回该ip.
+	//这样不同process open同一个文件的话，就都指向这个
+	//inode了。
     if(type == T_FILE && ip->type == T_FILE)
       return ip;
     iunlockput(ip);
+	//如果不是FILE类型的操作，返回0，错误
     return 0;
   }
 
@@ -275,6 +288,8 @@ create(char *path, short type, short major, short minor)
 
   return ip;
 }
+
+
 
 int
 sys_open(void)
@@ -310,6 +325,9 @@ sys_open(void)
   }
   iunlock(ip);
 
+  //上面处理inode的分配，查找(如果已经存在的文件就直接打开)
+  //接下来就把该inode和file 关联起来
+  //Question: 没看怎么更新ref?如果不同进程打开同一文件的话?create 里面也没看到
   f->type = FD_INODE;
   f->ip = ip;
   f->off = 0;

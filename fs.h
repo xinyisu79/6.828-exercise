@@ -34,6 +34,8 @@ struct dinode {
 };
 
 // Inodes per block.
+// 所以一个block里面确实是包含多个inode的。
+// inode的定位是通过inode id，IBLOCK(id)来确定所在的block
 #define IPB           (BSIZE / sizeof(struct dinode))
 
 // Block containing inode i

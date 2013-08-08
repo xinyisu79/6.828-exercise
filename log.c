@@ -35,6 +35,8 @@
 // and to keep track in memory of logged sector #s before commit.
 struct logheader {
   int n;   
+  //sector[i]: 第i个log data block(编号为log.start+i+1)所存储的数据，
+  //本应该写入的block的id。即write操作的destination block的id
   int sector[LOGSIZE];
 };
 
@@ -105,6 +107,9 @@ write_head(void)
   struct logheader *hb = (struct logheader *) (buf->data);
   int i;
   hb->n = log.lh.n;
+  //log变量是in-memory的，hb才是要写入磁盘的log header的表示
+  //用bwrite(buf)写。(bwrite肯定就没有log transaction了--实际也是如此--
+  //不然log自身的写入又要log，循环了，没法写入了...-,-)
   for (i = 0; i < log.lh.n; i++) {
     hb->sector[i] = log.lh.sector[i];
   }
@@ -166,11 +171,20 @@ log_write(struct buf *b)
   if (!log.busy)
     panic("write outside of trans");
 
+  //找以前有的log，因为在一个transcation中，可能对同一个block
+  //多次写操作，后面的覆盖了前面的操作,这样就直接改之前的log
+  //而不用append，提高效率
+  //
+  //同时从这里可以看出，log.lh.sector[i]存储值是buf要写入的block
+  //的id，即destination addr. 而buf的数据，则存储在log section中
+  //存储data的第i个block，即下面的log.start+i+1
   for (i = 0; i < log.lh.n; i++) {
     if (log.lh.sector[i] == b->sector)   // log absorbtion?
       break;
   }
   log.lh.sector[i] = b->sector;
+  //sector[i]对应的block所在的block id就是log.start+i+1,
+  //因为log sector也是顺序存储的
   struct buf *lbuf = bread(b->dev, log.start+i+1);
   memmove(lbuf->data, b->data, BSIZE);
   bwrite(lbuf);

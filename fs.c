@@ -58,8 +58,13 @@ balloc(uint dev)
 
   bp = 0;
   readsb(dev, &sb);
+  //外层循环是对所有的bitmap blocks遍历
   for(b = 0; b < sb.size; b += BPB){
     bp = bread(dev, BBLOCK(b, sb.ninodes));
+	//内层循环是对某一bitmap block的所有bitmap位进行检查
+	//看是否能有free block.
+	//为了防止对同一bitmap block的访问，这是由bread()保证的：
+	//buffer cache只能同时让一个进程访问到.
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
@@ -184,6 +189,8 @@ ialloc(uint dev, short type)
 
   for(inum = 1; inum < sb.ninodes; inum++){
     bp = bread(dev, IBLOCK(inum));
+
+	//所在的block有多个Inode，定位到该inode所在的位置
     dip = (struct dinode*)bp->data + inum%IPB;
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
@@ -227,6 +234,9 @@ iget(uint dev, uint inum)
   acquire(&icache.lock);
 
   // Is the inode already cached?
+  // 从icache里面找到(dev, inum)的inode，如果已经有了，ref++
+  // 如果没有，从一个ip->ref == 0的地方分配过来。(所以iput只需
+  // ref--,减到0的话，就算是该in-memory inode能够再利用了
   empty = 0;
   for(ip = &icache.inode[0]; ip < &icache.inode[NINODE]; ip++){
     if(ip->ref > 0 && ip->dev == dev && ip->inum == inum){
@@ -314,10 +324,15 @@ iunlock(struct inode *ip)
 // be recycled.
 // If that was the last reference and the inode has no links
 // to it, free the inode (and its content) on disk.
+// 如果这是最后一个引用，inode，ip引用计数自动降到0，这样就能recyle.
+// (if分支后面的那个。应该是默认自动可用该inode cache item)
+// 同时检查，如果该文件的nlink也是0，就删除文件。
+// fclose(file *)会调用该函数
 void
 iput(struct inode *ip)
 {
   acquire(&icache.lock);
+  //进入此分支，删除文件内容
   if(ip->ref == 1 && (ip->flags & I_VALID) && ip->nlink == 0){
     // inode has no links: truncate and free inode.
     if(ip->flags & I_BUSY)
@@ -331,6 +346,8 @@ iput(struct inode *ip)
     ip->flags = 0;
     wakeup(ip);
   }
+  //即便上面的条件不成立(unlink != 0)那么ip in-memeory inode还是可以recyled的
+  //上面的仅仅是当unlink == 0，删除文件本身
   ip->ref--;
   release(&icache.lock);
 }
@@ -402,6 +419,10 @@ itrunc(struct inode *ip)
     }
   }
   
+  //从这里可以看出，addrs[i]的含义：
+  //i < NDIRECT的时候，表示的是数据所在的block的编号
+  //i == NDIRECT的时候，表示的是一个block的地址，这个
+  //block里面全存放着接下来的data block的地址, block编号
   if(ip->addrs[NDIRECT]){
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
@@ -431,6 +452,9 @@ stati(struct inode *ip, struct stat *st)
 
 //PAGEBREAK!
 // Read data from inode.
+// readi, writei等系列函数需要caller lock。
+// bmap直接返回对应的data block所在的block 编号
+// readi进一步封装了,从inode的数据里读写多少字节
 int
 readi(struct inode *ip, char *dst, uint off, uint n)
 {
